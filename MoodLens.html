@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>MoodLens - Sentiment Analyzer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #120f0a;
+      --panel: rgba(255, 255, 255, 0.08);
+      --panel-strong: rgba(255, 255, 255, 0.12);
+      --border: rgba(255, 210, 140, 0.16);
+      --text: #fff8ec;
+      --muted: #b9a88e;
+      --accent: #f4b860;
+      --accent2: #c97a42;
+      --accent3: #d6a451;
+      --soft: #b8845a;
+      --danger: #d65f4a;
+      --shadow: 0 26px 90px rgba(0, 0, 0, 0.48);
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: "Inter", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(244, 184, 96, 0.18), transparent 26%),
+        radial-gradient(circle at 85% 12%, rgba(201, 122, 66, 0.16), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(214, 164, 81, 0.12), transparent 30%),
+        linear-gradient(135deg, #120f0a, #1b140c 42%, #090705);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(244, 184, 96, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(244, 184, 96, 0.035) 1px, transparent 1px);
+      background-size: 52px 52px;
+      pointer-events: none;
+    }
+
+    .app {
+      position: relative;
+      width: min(1180px, 100%);
+      min-height: 100vh;
+      margin: auto;
+      padding: 28px 18px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 17px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #120f0a;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 20px;
+      box-shadow: 0 16px 45px rgba(244, 184, 96, 0.22);
+    }
+
+    .logo h2 {
+      font-size: 24px;
+      letter-spacing: -0.8px;
+    }
+
+    .logo p {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .nav-pill {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 10px 14px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+      backdrop-filter: blur(20px);
+    }
+
+    .intro {
+      margin-bottom: 20px;
+    }
+
+    .intro h1 {
+      font-family: "DM Serif Display", serif;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 0.95;
+      letter-spacing: -1.8px;
+      margin-bottom: 10px;
+    }
+
+    .intro h1 span {
+      color: var(--accent);
+      font-style: italic;
+    }
+
+    .intro p {
+      max-width: 680px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 22px;
+      align-items: stretch;
+      flex: 1;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 30px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(26px);
+      overflow: hidden;
+    }
+
+    .input-panel,
+    .result-panel {
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 20px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .panel-header h3 {
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .panel-header span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .input-body {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    textarea {
+      width: 100%;
+      flex: 1;
+      min-height: 250px;
+      border: 1px solid var(--border);
+      background: rgba(1, 8, 5, 0.45);
+      color: var(--text);
+      border-radius: 24px;
+      padding: 20px;
+      font-size: 16px;
+      line-height: 1.7;
+      outline: none;
+      resize: none;
+      transition: 0.2s ease;
+    }
+
+    textarea:focus {
+      border-color: rgba(244, 184, 96, 0.55);
+      box-shadow: 0 0 0 5px rgba(244, 184, 96, 0.08);
+    }
+
+    textarea::placeholder {
+      color: #8d7e69;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      height: 54px;
+      border: none;
+      border-radius: 18px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: 0.2s ease;
+      padding: 0 22px;
+      font-size: 14px;
+    }
+
+    .btn-analyze {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #120f0a;
+      box-shadow: 0 16px 38px rgba(244, 184, 96, 0.18);
+    }
+
+    .btn-clear {
+      background: rgba(255,255,255,0.06);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .result-body {
+      padding: 22px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .empty-result {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 30px;
+    }
+
+    .empty-result-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 24px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      background: rgba(244, 184, 96, 0.11);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-size: 32px;
+      font-weight: 900;
+    }
+
+    .empty-result h3 {
+      color: var(--text);
+      margin-bottom: 8px;
+      font-size: 20px;
+    }
+
+    .empty-result p {
+      max-width: 360px;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .results {
+      display: none;
+      flex: 1;
+    }
+
+    .results.visible {
+      display: block;
+      animation: rise 0.35s ease both;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .verdict-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.07);
+      border-radius: 999px;
+      padding: 10px 18px 10px 12px;
+    }
+
+    .verdict-pip {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .verdict-text {
+      font-family: "DM Serif Display", serif;
+      font-size: 25px;
+      font-style: italic;
+    }
+
+    .verdict-badge.positive .verdict-pip {
+      background: var(--accent);
+      box-shadow: 0 0 14px var(--accent);
+    }
+
+    .verdict-badge.positive .verdict-text {
+      color: var(--accent);
+    }
+
+    .verdict-badge.negative .verdict-pip {
+      background: var(--danger);
+      box-shadow: 0 0 14px var(--danger);
+    }
+
+    .verdict-badge.negative .verdict-text {
+      color: var(--danger);
+    }
+
+    .verdict-badge.neutral .verdict-pip {
+      background: var(--soft);
+      box-shadow: 0 0 14px var(--soft);
+    }
+
+    .verdict-badge.neutral .verdict-text {
+      color: var(--soft);
+    }
+
+    .confidence {
+      color: var(--muted);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      padding: 9px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+    }
+
+    .confidence b {
+      color: var(--text);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .metric-name {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .metric-val {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+    }
+
+    .metric-unit {
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .bar-track {
+      height: 7px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      transition: width 0.7s ease;
+    }
+
+    .bar-pol-pos {
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+    }
+
+    .bar-pol-neg {
+      background: linear-gradient(90deg, var(--danger), #a94335);
+    }
+
+    .bar-pol-neu {
+      background: linear-gradient(90deg, var(--soft), var(--accent2));
+    }
+
+    .bar-sub {
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+    }
+
+    .bar-wc {
+      background: linear-gradient(90deg, var(--soft), var(--accent3));
+    }
+
+    .metric-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .word-cloud {
+      margin-bottom: 16px;
+    }
+
+    .word-cloud-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 10px;
+    }
+
+    .word-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .word-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 11px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .word-tag.pos {
+      color: var(--accent);
+      background: rgba(244,184,96,0.1);
+      border: 1px solid rgba(244,184,96,0.24);
+    }
+
+    .word-tag.neg {
+      color: var(--danger);
+      background: rgba(214,95,74,0.1);
+      border: 1px solid rgba(214,95,74,0.24);
+    }
+
+    .word-tag.neu {
+      color: var(--soft);
+      background: rgba(184,132,90,0.1);
+      border: 1px solid rgba(184,132,90,0.22);
+    }
+
+    .word-tag .sc {
+      opacity: 0.7;
+      font-size: 12px;
+    }
+
+    .no-kw {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 14px;
+    }
+
+    .text-box {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.055);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .text-box p {
+      color: #e4d0b5;
+      line-height: 1.7;
+      font-style: italic;
+    }
+
+    @media (max-width: 950px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .input-panel,
+      .result-panel {
+        min-height: auto;
+      }
+
+      textarea {
+        min-height: 220px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app {
+        padding: 22px 12px 36px;
+      }
+
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .intro h1 {
+        font-size: 40px;
+      }
+
+      .panel {
+        border-radius: 24px;
+      }
+
+      .panel-header,
+      .input-body,
+      .result-body {
+        padding: 20px;
+      }
+
+      .metric-grid,
+      .actions {
+        grid-template-columns: 1fr;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      textarea {
+        min-height: 180px;
+        border-radius: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <nav class="nav">
+      <div class="logo">
+        <div class="logo-mark">ML</div>
+        <div>
+          <h2>MoodLens</h2>
+          <p>Sentiment analysis dashboard</p>
+        </div>
+      </div>
+      <div class="nav-pill">AFINN + Heuristics</div>
+    </nav>
+
+    <section class="intro">
+      <h1>Analyze the <span>emotion</span> behind text.</h1>
+      <p>
+        Paste any review, message, comment, or feedback and instantly detect its sentiment,
+        polarity, subjectivity, and emotional keywords.
+      </p>
+    </section>
+
+    <section class="workspace">
+      <div class="panel input-panel">
+        <div class="panel-header">
+          <h3>Analyze Text</h3>
+        </div>
+
+        <div class="input-body">
+          <textarea id="txt" placeholder="Type or paste your sentence here..."></textarea>
+
+          <div class="actions">
+            <button class="btn btn-analyze" id="btn" type="button">Analyze Sentiment</button>
+            <button class="btn btn-clear" id="clr" type="button">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel result-panel">
+        <div class="panel-header">
+          <h3>Result</h3>
+          <span>Live Output</span>
+        </div>
+
+        <div class="result-body">
+          <div class="empty-result" id="emptyState">
+            <div>
+              <div class="empty-result-icon">✦</div>
+              <h3>Your result will appear here</h3>
+              <p>Enter text on the left and click analyze to see sentiment details without scrolling.</p>
+            </div>
+          </div>
+
+          <div class="results" id="results">
+            <div class="result-head">
+              <div class="verdict-badge" id="vbadge">
+                <div class="verdict-pip"></div>
+                <span class="verdict-text" id="vtxt"></span>
+              </div>
+              <span class="confidence" id="conf"></span>
+            </div>
+
+            <div class="metric-grid">
+              <div class="metric">
+                <div class="metric-name">Polarity</div>
+                <div class="metric-val" id="m-pol">0<span class="metric-unit"> /1.0</span></div>
+                <div class="bar-track"><div class="bar-fill" id="b-pol"></div></div>
+                <div class="metric-hint">-1 negative to +1 positive</div>
+              </div>
+
+              <div class="metric">
+                <div class="metric-name">Subjectivity</div>
+                <div class="metric-val" id="m-sub">0<span class="metric-unit"> /1.0</span></div>
+                <div class="bar-track"><div class="bar-fill bar-sub" id="b-sub"></div></div>
+                <div class="metric-hint">0 objective to 1 subjective</div>
+              </div>
+
+              <div class="metric">
+                <div class="metric-name">Words</div>
+                <div class="metric-val" id="m-wc">0</div>
+                <div class="bar-track"><div class="bar-fill bar-wc" id="b-wc"></div></div>
+                <div class="metric-hint">Words in input</div>
+              </div>
+            </div>
+
+            <div class="word-cloud">
+              <div class="word-cloud-title">Sentiment Keywords</div>
+              <div class="word-tags" id="word-tags"></div>
+            </div>
+
+            <div class="text-box">
+              <p id="r-txt"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const AFINN = {
+      abandon:-2, abandoned:-2, abhor:-3, abject:-3, abolish:-1, abominable:-3, abominably:-3,
+      abominate:-3, abomination:-3, abort:-2, aborted:-2, abrupt:-1, absence:-1,
+      abuse:-3, abused:-3, abusive:-3, accept:1, acclaimed:3, accomplish:2, accomplished:2,
+      accurate:2, ache:-2, aching:-2, admirable:3, admire:3, admired:3, adorable:3,
+      adore:3, adored:3, advantage:2, affection:3, afraid:-2, aggravate:-2, aggression:-2,
+      aggro:-2, agony:-3, alarm:-2, alarmed:-2, alarming:-2, alienate:-2, amazed:2,
+      amazing:4, amaze:3, ambiguous:-1, ambivalent:-1, amiss:-2, anger:-3, angry:-3,
+      anguish:-3, annoyed:-2, annoying:-2, anxiety:-3, anxious:-2, appalling:-3,
+      arrogant:-2, assault:-3, atrocious:-3, awful:-3, awfully:-2, awkward:-2,
+      bad:-3, badly:-2, banal:-1, bankrupt:-2, barrier:-1, beautiful:3, beautifully:3,
+      best:3, betray:-3, bitter:-2, blame:-2, bland:-1, bliss:3, blissful:3,
+      bogus:-2, bore:-2, bored:-2, boring:-2, bother:-2, brave:2, breakthrough:3,
+      bright:2, brilliant:4, broken:-2, brutal:-3, burden:-2,
+      calm:2, caring:2, catastrophe:-3, catastrophic:-3, chaos:-2, charming:3,
+      cheap:-1, cheat:-3, cheated:-3, cheerful:3, classic:2, clumsy:-2,
+      comfortable:2, compassion:2, complain:-2, complaint:-2, confident:2,
+      confuse:-1, confused:-2, confusing:-1, congrats:3, corrupt:-3, creative:2,
+      cruel:-3, cute:3, damage:-2, dangerous:-3, dead:-2, deceive:-3,
+      dedicated:2, defeat:-2, defective:-2, dependable:2, depressed:-3,
+      depressing:-3, despair:-3, desperate:-3, despise:-3, destroy:-3,
+      devastating:-3, disappoint:-2, disappointed:-2, disappointing:-2,
+      disaster:-3, dishonest:-3, distress:-3, doubtful:-1, dreadful:-3, dull:-2,
+      eager:2, effective:2, efficient:2, empower:3, encouraging:2, energetic:3,
+      enjoy:2, enjoyable:3, entertainment:3, enthusiastic:3, exceptional:3,
+      excellent:4, exciting:3, exhausted:-2, extraordinary:4,
+      fail:-2, failure:-2, fake:-2, fantastic:4, fascinating:3, faulty:-2,
+      fear:-2, filthy:-2, flawed:-2, foolish:-2, fraud:-3, freedom:2,
+      fresh:2, friendly:3, frustrated:-2, frustrating:-2, fun:4, furious:-3,
+      genuine:2, glad:3, glorious:3, gloomy:-2, good:3, grateful:3, great:3,
+      grief:-3, guilty:-2, happy:3, harmful:-3, hate:-3, hated:-3,
+      helpful:3, helpless:-2, horrible:-3, hostile:-3, hurt:-2,
+      ignorant:-2, impressive:3, inadequate:-2, incompetent:-2, incredible:3,
+      ineffective:-2, inferior:-2, innovative:3, inspire:3, inspired:3,
+      inspiring:3, intelligent:3, irresponsible:-2, irritating:-2, joyful:3,
+      kind:2, knowledgeable:2, lazy:-2, lively:2, lonely:-2, love:3,
+      loved:3, lovely:3, loyal:3, magnificent:3, malicious:-3, mediocre:-2,
+      memorable:2, messy:-2, miserable:-3, mistake:-2, motivated:3,
+      nasty:-3, negative:-2, nervous:-2, noble:2, offensive:-3,
+      outstanding:4, overwhelmed:-2, pain:-2, painful:-2, pathetic:-2,
+      perfect:4, perfectly:3, pointless:-2, poor:-2, positive:2,
+      powerful:3, productive:2, proud:3, reliable:2, ridiculous:-2,
+      rude:-3, rubbish:-3, ruin:-3, sad:-2, satisfied:3, scary:-2,
+      selfish:-2, shocking:-2, slow:-1, smart:2, spectacular:3, stress:-2,
+      stressed:-3, stupid:-3, success:3, successful:3, superb:4,
+      supportive:2, terrible:-3, terrific:3, thankful:3, toxic:-3,
+      tragic:-3, trust:2, trustworthy:3, ugly:-2, unfortunate:-2,
+      unhappy:-3, unique:2, unreliable:-2, upset:-2, useful:2,
+      useless:-3, vague:-1, vibrant:3, violent:-3, warm:2, waste:-2,
+      weak:-2, wonderful:4, worry:-2, worthless:-3, wrong:-2
+    };
+
+    const NEGATIONS = {
+      not: 1, no: 1, never: 1, neither: 1, nor: 1, nobody: 1,
+      nothing: 1, nowhere: 1, hardly: 1, scarcely: 1, barely: 1, without: 1
+    };
+
+    const BOOSTERS = {
+      very: 1.3,
+      extremely: 1.5,
+      absolutely: 1.4,
+      incredibly: 1.4,
+      totally: 1.2,
+      so: 1.2,
+      really: 1.2,
+      quite: 1.1,
+      fairly: 0.9,
+      slightly: 0.7,
+      barely: 0.6,
+      somewhat: 0.8,
+      little: 0.7
+    };
+
+    function getEl(id) {
+      return document.getElementById(id);
+    }
+
+    function tokenize(text) {
+      return text
+        .toLowerCase()
+        .replace(/n't/g, " not")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter(word => word.length > 0);
+    }
+
+    function analyze(text) {
+      const tokens = tokenize(text);
+      const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+
+      let score = 0;
+      let matched = [];
+      let subjectivityCount = 0;
+
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+
+        let negated = false;
+
+        for (let j = Math.max(0, i - 3); j < i; j++) {
+          if (NEGATIONS[tokens[j]]) {
+            negated = true;
+            break;
+          }
+        }
+
+        let boost = 1;
+
+        if (i > 0 && BOOSTERS[tokens[i - 1]]) {
+          boost = BOOSTERS[tokens[i - 1]];
+        }
+
+        if (AFINN[token] !== undefined) {
+          let finalScore = AFINN[token] * boost;
+
+          if (negated) {
+            finalScore = finalScore * -0.8;
+          }
+
+          score += finalScore;
+          subjectivityCount++;
+
+          matched.push({
+            word: token,
+            raw: AFINN[token],
+            final: finalScore,
+            negated
+          });
+        }
+      }
+
+      let polarity = score / Math.max(tokens.length * 2, 1);
+      polarity = Math.max(-1, Math.min(1, polarity));
+      polarity = Math.round(polarity * 100) / 100;
+
+      const subjectivity = Math.min(
+        1,
+        Math.round((subjectivityCount / Math.max(wordCount, 1)) * 160) / 100
+      );
+
+      let sentiment = "Neutral";
+      let confidence = null;
+
+      if (polarity > 0.1) {
+        sentiment = "Positive";
+        confidence = Math.min(99, Math.round(50 + Math.abs(polarity) * 49)) + "%";
+      } else if (polarity < -0.1) {
+        sentiment = "Negative";
+        confidence = Math.min(99, Math.round(50 + Math.abs(polarity) * 49)) + "%";
+      }
+
+      return {
+        polarity,
+        subjectivity,
+        sentiment,
+        confidence,
+        matched,
+        wordCount
+      };
+    }
+
+    function runAnalysis() {
+      const text = getEl("txt").value.trim();
+
+      if (!text) {
+        getEl("txt").focus();
+        return;
+      }
+
+      const result = analyze(text);
+      const className = result.sentiment.toLowerCase();
+
+      getEl("emptyState").style.display = "none";
+
+      getEl("vbadge").className = "verdict-badge " + className;
+      getEl("vtxt").textContent = result.sentiment;
+
+      getEl("conf").innerHTML = result.confidence
+        ? "Confidence <b>" + result.confidence + "</b>"
+        : "<b>Mixed</b> signals";
+
+      getEl("m-pol").innerHTML =
+        result.polarity.toFixed(2) + '<span class="metric-unit"> /1.0</span>';
+
+      const polarityPercent = ((result.polarity + 1) / 2 * 100).toFixed(1);
+      const polarityBar = getEl("b-pol");
+
+      polarityBar.className =
+        "bar-fill " +
+        (result.polarity > 0.1
+          ? "bar-pol-pos"
+          : result.polarity < -0.1
+          ? "bar-pol-neg"
+          : "bar-pol-neu");
+
+      polarityBar.style.width = "0%";
+
+      setTimeout(() => {
+        polarityBar.style.width = polarityPercent + "%";
+      }, 40);
+
+      getEl("m-sub").innerHTML =
+        result.subjectivity.toFixed(2) + '<span class="metric-unit"> /1.0</span>';
+
+      const subjectivityBar = getEl("b-sub");
+      subjectivityBar.style.width = "0%";
+
+      setTimeout(() => {
+        subjectivityBar.style.width = (result.subjectivity * 100).toFixed(1) + "%";
+      }, 70);
+
+      getEl("m-wc").textContent = result.wordCount;
+
+      const wordCountBar = getEl("b-wc");
+      wordCountBar.style.width = "0%";
+
+      setTimeout(() => {
+        wordCountBar.style.width = Math.min(100, result.wordCount * 5) + "%";
+      }, 100);
+
+      const tags = getEl("word-tags");
+      tags.innerHTML = "";
+
+      if (result.matched.length === 0) {
+        tags.innerHTML = '<span class="no-kw">No sentiment keywords detected</span>';
+      } else {
+        const seen = {};
+
+        result.matched.forEach(item => {
+          if (seen[item.word]) return;
+
+          seen[item.word] = true;
+
+          const tagClass = item.final > 0 ? "pos" : item.final < 0 ? "neg" : "neu";
+          const sign = item.final > 0 ? "+" : "";
+
+          const tag = document.createElement("span");
+          tag.className = "word-tag " + tagClass;
+          tag.innerHTML =
+            (item.negated ? "not " : "") +
+            item.word +
+            '<span class="sc">' +
+            sign +
+            item.raw +
+            "</span>";
+
+          tags.appendChild(tag);
+        });
+      }
+
+      getEl("r-txt").textContent = "“" + text + "”";
+
+      const resultsBox = getEl("results");
+      resultsBox.classList.remove("visible");
+      void resultsBox.offsetWidth;
+      resultsBox.classList.add("visible");
+    }
+
+    function clearAll() {
+      getEl("txt").value = "";
+      getEl("results").classList.remove("visible");
+      getEl("emptyState").style.display = "grid";
+      getEl("txt").focus();
+    }
+
+   document.addEventListener("DOMContentLoaded", () => {
+  getEl("btn").addEventListener("click", runAnalysis);
+  getEl("clr").addEventListener("click", clearAll);
+
+  getEl("txt").addEventListener("keydown", function(event) {
+
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      runAnalysis();
+    }
+  });
+});
+  </script>
+</body>
+</html>
